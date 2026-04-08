@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>连词成句闯关游戏</title>
+  <style>
+    *{
+      box-sizing:border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    body{
+      margin:0;
+      padding:20px;
+      background: #F8F9FC;
+      min-height:100vh;
+    }
+    .container{
+      max-width:1000px;
+      margin:0 auto;
+      position:relative;
+      z-index:10;
+    }
+    .coin-tower{
+      position:fixed;
+      left:10px;
+      top:50%;
+      transform:translateY(-50%);
+      display:flex;
+      flex-direction:column-reverse;
+      gap:8px;
+      z-index:5;
+    }
+    .coin{
+      font-size:28px;
+      opacity:0;
+      transform:scale(0.3);
+      transition:all 0.4s ease;
+    }
+    .coin.active{
+      opacity:1;
+      transform:scale(1);
+    }
+    .title-box{
+      background:#6366F1;
+      color:white;
+      text-align:center;
+      padding:16px;
+      border-radius:12px;
+      font-size:20px;
+      font-weight:600;
+      margin-bottom:20px;
+      box-shadow:0 6px 20px rgba(99, 102, 241, 0.15);
+    }
+    .score-board{
+      background:#FFFFFF;
+      border-radius:12px;
+      padding:14px;
+      text-align:center;
+      font-size:16px;
+      font-weight:500;
+      margin-bottom:20px;
+      box-shadow:0 4px 15px rgba(0,0,0,0.05);
+      color:#374151;
+    }
+    .game-item{
+      background:#FFFFFF;
+      padding:22px;
+      border-radius:16px;
+      box-shadow:0 4px 15px rgba(0,0,0,0.04);
+      margin-bottom:20px;
+    }
+    .sentence-number{
+      font-weight:600;
+      color:#6366F1;
+      margin-bottom:10px;
+      font-size:17px;
+    }
+    .hint{
+      color:#4B5563;
+      margin-bottom:16px;
+      font-size:16px;
+      line-height:1.6;
+    }
+    .words{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-bottom:20px;
+      min-height:60px;
+    }
+    .word{
+      padding:14px 18px;
+      background:#EEF2FF;
+      color:#374151;
+      border-radius:10px;
+      cursor:pointer;
+      font-size:18px;
+      font-weight:500;
+      transition:0.2s;
+    }
+    .word:hover{
+      background:#D1D5F9;
+    }
+    .answer-line{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      padding:16px;
+      background:#F9FAFB;
+      border-radius:12px;
+      min-height:70px;
+      margin-bottom:16px;
+    }
+    .word-correct{
+      background:#A7F3D0 !important;
+      color:#065F46;
+      font-weight:500;
+      border-radius:10px;
+      padding:12px 16px;
+      font-size:17px;
+    }
+    .word-wrong{
+      background:#FECACA !important;
+      color:#7F1D1D;
+      font-weight:500;
+      border-radius:10px;
+      padding:12px 16px;
+      font-size:17px;
+      cursor:pointer;
+    }
+    .result{
+      font-weight:500;
+      margin-top:10px;
+      font-size:16px;
+    }
+    .correct{
+      color:#10B981;
+    }
+    .wrong{
+      color:#EF4444;
+    }
+    button{
+      padding:10px 18px;
+      margin:6px 5px;
+      border:none;
+      border-radius:10px;
+      font-size:15px;
+      font-weight:500;
+      cursor:pointer;
+      transition:all 0.2s ease;
+    }
+    button:hover{
+      transform:translateY(-1px);
+      box-shadow:0 4px 10px rgba(0,0,0,0.08);
+    }
+    .btn-primary{
+      background:#6366F1;
+      color:white;
+    }
+    .btn-success{
+      background:#10B981;
+      color:white;
+    }
+    .btn-warning{
+      background:#F59E0B;
+      color:white;
+    }
+    .btn-light{
+      background:#EEF2FF;
+      color:#6366F1;
+    }
+    .victory{
+      position:fixed;
+      top:50%;
+      left:50%;
+      transform:translate(-50%,-50%);
+      background:white;
+      border-radius:20px;
+      padding:40px 50px;
+      text-align:center;
+      font-size:22px;
+      font-weight:600;
+      color:#374151;
+      box-shadow:0 10px 40px rgba(0,0,0,0.1);
+      z-index:999;
+      display:none;
+    }
+    .notice{
+      background:#E3F2FD;
+      color:#1976D2;
+      padding:12px;
+      border-radius:8px;
+      margin-bottom:15px;
+      font-size:14px;
+    }
+  </style>
+  <!-- 🔥 核心：引入跨平台TTS库（免费、自带英语） -->
+  <script src="https://code.responsivevoice.org/responsivevoice.js?key=FREE_FOR_NON_COM"></script>
+</head>
+<body>
+
+<div class="notice">🔊 提示：点击单词或「读中文」即可发音，无需安装任何APP</div>
+<div class="coin-tower" id="coinTower"></div>
+
+<div class="victory" id="victoryModal">
+  🎉 恭喜通关！成功登顶！🎉
+  <br><br>
+  <button onclick="closeVictory()" class="btn-primary">再来一局</button>
+</div>
+
+<div class="container">
+  <div class="title-box">连词成句 · 闯关游戏</div>
+  <div class="score-board">
+    用时：<span id="time">0</span> 秒 | 总分：<span id="score">0</span> 分 | 已闯：<span id="progress">0</span>/<span id="total">0</span> 关
+  </div>
+
+  <div style="text-align:center; margin-bottom:20px;">
+    <button onclick="startGame()" class="btn-success">开始闯关</button>
+    <button onclick="resetAll()" class="btn-warning">全部重置</button>
+  </div>
+
+  <div id="gameContainer"></div>
+</div>
+
+<script>
+let games = [];
+let startTime = null;
+let timer = null;
+let totalScore = 0;
+
+const fixedQuestions = [
+"The bus went higher and higher. Tom saw his town below.|公共汽车开得越来越高。汤姆看到了下面的城镇。",
+"It got smaller and smaller.|它变得越来越小。",
+"‘Oh look! There’s the sports centre! And there’s the market!’ he said.|“哦看！那是体育中心！还有那是市场！” 他说。",
+"The bus went up and down like a ride at the funfair.|公共汽车上下起伏，就像游乐场里的游乐设施。",
+"After a few minutes, Brenda said, ‘OK, get ready.|几分钟后，布伦达说：“好的，准备好。",
+"We’re coming down to the bus stop.’|我们要下到公交站台了。”",
+"At that moment, Tom heard his mum say, ‘Tom! Tom! You have to get up.|在那时，汤姆听到他的妈妈说：“汤姆！汤姆！你必须起床了。",
+"We don’t want to be late. You have to catch the bus.’|我们不想迟到。你必须去赶公共汽车。”",
+"‘Oh no!’, Tom thought. ‘It was all a dream.’|“哦不！” 汤姆想。“那全是一场梦。”",
+"‘Do I have to catch the bus, Mum?’ Tom asked.|“我必须去赶公共汽车吗，妈妈？” 汤姆问。",
+"‘Yes, you do. But don’t worry!’ his mum answered.|“是的，你必须。但是别担心！” 他妈妈回答。",
+"Finally, the school bus came. It was small and red.|最后，校车来了。它很小，是红色的。",
+"The doors opened.|门打开了。",
+"Tom looked up and saw Brenda from his dream.|汤姆抬头看，看到了梦里的布伦达。",
+"‘Good morning, Tom. Welcome. I’m Brenda and this is your bus buddy, Bruno!’|“早上好，汤姆。欢迎。我是布伦达，这是你的校车伙伴，布鲁诺！”",
+"‘Brenda! Bruno!’ Tom said and he got on the bus.|“布伦达！布鲁诺！” 汤姆说，然后他上了公共汽车。"
+];
+
+// 🔥 朗读英文（不依赖系统TTS，全网稳）
+function speakWord(word) {
+  if (!window.responsiveVoice) return;
+  // 英文女声，清晰标准
+  responsiveVoice.speak(word, "US English Female", {rate: 0.9});
+}
+
+// 🔥 朗读中文
+function speakChinese(text) {
+  if (!window.responsiveVoice) return;
+  responsiveVoice.speak(text, "Chinese Female", {rate: 0.9});
+}
+
+// 开始游戏
+function startGame(){
+  startTime = new Date();
+  totalScore = 0;
+  document.getElementById("score").textContent = 0;
+  clearInterval(timer);
+  timer = setInterval(updateTime,1000);
+
+  const container = document.getElementById("gameContainer");
+  container.innerHTML = "";
+  games = [];
+
+  coinTower.innerHTML = "";
+  for(let i=0;i<fixedQuestions.length;i++){
+    let coin = document.createElement("div");
+    coin.className = "coin";
+    coin.id = "coin-"+(i+1);
+    coin.textContent = "💰";
+    coinTower.appendChild(coin);
+  }
+  
+  document.getElementById("total").textContent = fixedQuestions.length;
+  document.getElementById("progress").textContent = 0;
+
+  fixedQuestions.forEach((line,idx)=>{
+    const [en,cn] = line.split("|").map(i=>i.trim());
+    if(!en) return;
+    const game = {
+      id:idx+1, en:en, cn:cn,
+      words:en.split(/\s+/).filter(w=>w),
+      userAnswer:[], shuffled:[], finished:false
+    };
+    game.shuffled = [...game.words].sort(()=>Math.random()-0.5);
+    games.push(game);
+    renderGame(game);
+  });
+}
+
+// 渲染题目
+function renderGame(g){
+  const container = document.getElementById("gameContainer");
+  const div = document.createElement("div");
+  div.className = "game-item";
+  div.innerHTML = `
+    <div class="sentence-number">第 ${g.id} 关</div>
+    <div class="hint">
+      中文提示：${g.cn}
+      <button onclick="speakChinese('${g.cn.replace(/'/g,"\\'")}')" class="btn-light" style="padding:6px 12px;font-size:13px;">🔊 读中文</button>
+    </div>
+    <div class="words" id="words-${g.id}"></div>
+    <div class="answer-line" id="answer-${g.id}"></div>
+    <button onclick="check(${g.id})" class="btn-success">检查</button>
+    <button onclick="resetOne(${g.id})" class="btn-warning">重置本题</button>
+    <div id="result-${g.id}" class="result"></div>
+  `;
+  container.appendChild(div);
+  refreshGame(g);
+}
+
+function refreshGame(g){
+  const wordsEl = document.getElementById(`words-${g.id}`);
+  const ansEl = document.getElementById(`answer-${g.id}`);
+  
+  wordsEl.innerHTML = g.shuffled.map(w=>`
+    <span class="word" onclick="pick(${g.id},'${w.replace(/'/g,"\\'")}')">${w}</span>
+  `).join("");
+
+  let ansHTML = '';
+  g.userAnswer.forEach((word, index) => {
+    let correct = g.words[index] === word;
+    let cls = correct ? 'word-correct' : 'word-wrong';
+    let click = correct ? '' : `onclick="putBack(${g.id},${index})"`;
+    ansHTML += `<span class="${cls}" ${click}>${word}${correct?' ✅':' ❌'}</span>`;
+  });
+  ansEl.innerHTML = ansHTML;
+}
+
+// 选单词
+function pick(id,word){
+  const g = games.find(x=>x.id===id);
+  if(!g || g.finished) return;
+  speakWord(word); // 🔥 点击即读
+  const i = g.shuffled.indexOf(word);
+  if(i===-1)return;
+  g.shuffled.splice(i,1);
+  g.userAnswer.push(word);
+  refreshGame(g);
+}
+
+// 放回错误单词
+function putBack(id,index){
+  const g = games.find(x=>x.id===id);
+  if(!g || g.finished) return;
+  const word = g.userAnswer[index];
+  g.userAnswer.splice(index,1);
+  g.shuffled.push(word);
+  refreshGame(g);
+}
+
+// 检查
+function check(id){
+  const g = games.find(x=>x.id===id);
+  if(!g || g.finished) return;
+  const ok = JSON.stringify(g.userAnswer) === JSON.stringify(g.words);
+  const res = document.getElementById(`result-${g.id}`);
+
+  if(ok){
+    res.className = "result correct";
+    res.textContent = "✅ 回答正确！获得金币💰";
+    if(!g.finished){
+      g.finished = true;
+      document.getElementById(`coin-${g.id}`).classList.add("active");
+      totalScore += 500;
+      document.getElementById("score").textContent = totalScore;
+      const done = games.filter(x=>x.finished).length;
+      document.getElementById("progress").textContent = done;
+      if(done === games.length){
+        setTimeout(()=>{
+          document.getElementById("victoryModal").style.display = "block";
+        },600);
+      }
+    }
+  }else{
+    res.className = "result wrong";
+    res.textContent = "❌ 有错误，点击红色单词可放回重选";
+  }
+  refreshGame(g);
+}
+
+// 重置本题
+function resetOne(id){
+  const g = games.find(x=>x.id===id);
+  if(!g)return;
+  g.shuffled = [...g.words].sort(()=>Math.random()-0.5);
+  g.userAnswer = [];
+  g.finished = false;
+  document.getElementById(`result-${id}`).textContent = "";
+  document.getElementById(`coin-${id}`).classList.remove("active");
+  const done = games.filter(x=>x.finished).length;
+  document.getElementById("progress").textContent = done;
+  refreshGame(g);
+}
+
+// 全部重置
+function resetAll(){
+  document.getElementById("gameContainer").innerHTML = "";
+  document.getElementById("time").textContent = 0;
+  document.getElementById("score").textContent = 0;
+  document.getElementById("progress").textContent = 0;
+  document.getElementById("total").textContent = 0;
+  games = [];
+  startTime = null;
+  clearInterval(timer);
+  coinTower.innerHTML = "";
+  document.getElementById("victoryModal").style.display = "none";
+}
+
+// 计时
+function updateTime(){
+  if(!startTime)return;
+  const s = Math.floor((new Date()-startTime)/1000);
+  document.getElementById("time").textContent = s;
+}
+
+// 关闭通关
+function closeVictory(){
+  document.getElementById("victoryModal").style.display = "none";
+  resetAll();
+}
+</script>
+</body>
+</html>
