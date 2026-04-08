@@ -21,6 +21,7 @@
       position:relative;
       z-index:10;
     }
+
     .coin-tower{
       position:fixed;
       left:10px;
@@ -41,6 +42,7 @@
       opacity:1;
       transform:scale(1);
     }
+
     .title-box{
       background:#6366F1;
       color:white;
@@ -52,6 +54,7 @@
       margin-bottom:20px;
       box-shadow:0 6px 20px rgba(99, 102, 241, 0.15);
     }
+
     .score-board{
       background:#FFFFFF;
       border-radius:12px;
@@ -63,6 +66,7 @@
       box-shadow:0 4px 15px rgba(0,0,0,0.05);
       color:#374151;
     }
+
     .game-item{
       background:#FFFFFF;
       padding:22px;
@@ -82,6 +86,7 @@
       font-size:16px;
       line-height:1.6;
     }
+
     .words{
       display:flex;
       flex-wrap:wrap;
@@ -102,6 +107,7 @@
     .word:hover{
       background:#D1D5F9;
     }
+
     .answer-line{
       display:flex;
       flex-wrap:wrap;
@@ -129,6 +135,7 @@
       font-size:17px;
       cursor:pointer;
     }
+
     .result{
       font-weight:500;
       margin-top:10px;
@@ -140,6 +147,7 @@
     .wrong{
       color:#EF4444;
     }
+
     button{
       padding:10px 18px;
       margin:6px 5px;
@@ -170,6 +178,7 @@
       background:#EEF2FF;
       color:#6366F1;
     }
+
     .victory{
       position:fixed;
       top:50%;
@@ -186,21 +195,10 @@
       z-index:999;
       display:none;
     }
-    .notice{
-      background:#E3F2FD;
-      color:#1976D2;
-      padding:12px;
-      border-radius:8px;
-      margin-bottom:15px;
-      font-size:14px;
-    }
   </style>
-  <!-- 🔥 核心：引入跨平台TTS库（免费、自带英语） -->
-  <script src="https://code.responsivevoice.org/responsivevoice.js?key=FREE_FOR_NON_COM"></script>
 </head>
 <body>
 
-<div class="notice">🔊 提示：点击单词或「读中文」即可发音，无需安装任何APP</div>
 <div class="coin-tower" id="coinTower"></div>
 
 <div class="victory" id="victoryModal">
@@ -211,6 +209,7 @@
 
 <div class="container">
   <div class="title-box">连词成句 · 闯关游戏</div>
+
   <div class="score-board">
     用时：<span id="time">0</span> 秒 | 总分：<span id="score">0</span> 分 | 已闯：<span id="progress">0</span>/<span id="total">0</span> 关
   </div>
@@ -228,6 +227,7 @@ let games = [];
 let startTime = null;
 let timer = null;
 let totalScore = 0;
+let speechActivated = false;
 
 const fixedQuestions = [
 "The bus went higher and higher. Tom saw his town below.|公共汽车开得越来越高。汤姆看到了下面的城镇。",
@@ -248,21 +248,46 @@ const fixedQuestions = [
 "‘Brenda! Bruno!’ Tom said and he got on the bus.|“布伦达！布鲁诺！” 汤姆说，然后他上了公共汽车。"
 ];
 
-// 🔥 朗读英文（不依赖系统TTS，全网稳）
+// 全局触摸/点击一次激活语音（手机必须）
+function activateSpeech() {
+  if (speechActivated) return;
+  try {
+    let utter = new SpeechSynthesisUtterance("");
+    utter.volume = 0;
+    window.speechSynthesis.speak(utter);
+    speechActivated = true;
+  } catch (e) {}
+}
+document.addEventListener("click", activateSpeech);
+document.addEventListener("touchstart", activateSpeech);
+
+// 朗读英文（电脑手机通用）
 function speakWord(word) {
-  if (!window.responsiveVoice) return;
-  // 英文女声，清晰标准
-  responsiveVoice.speak(word, "US English Female", {rate: 0.9});
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  let u = new SpeechSynthesisUtterance(word);
+  u.lang = "en-US";
+  u.rate = 0.95;
+  setTimeout(() => {
+    window.speechSynthesis.speak(u);
+  }, 20);
 }
 
-// 🔥 朗读中文
+// 朗读中文
 function speakChinese(text) {
-  if (!window.responsiveVoice) return;
-  responsiveVoice.speak(text, "Chinese Female", {rate: 0.9});
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  let u = new SpeechSynthesisUtterance(text);
+  u.lang = "zh-CN";
+  u.rate = 0.95;
+  setTimeout(() => {
+    window.speechSynthesis.speak(u);
+  }, 20);
 }
 
 // 开始游戏
 function startGame(){
+  activateSpeech();
   startTime = new Date();
   totalScore = 0;
   document.getElementById("score").textContent = 0;
@@ -342,7 +367,7 @@ function refreshGame(g){
 function pick(id,word){
   const g = games.find(x=>x.id===id);
   if(!g || g.finished) return;
-  speakWord(word); // 🔥 点击即读
+  speakWord(word);
   const i = g.shuffled.indexOf(word);
   if(i===-1)return;
   g.shuffled.splice(i,1);
@@ -416,6 +441,7 @@ function resetAll(){
   clearInterval(timer);
   coinTower.innerHTML = "";
   document.getElementById("victoryModal").style.display = "none";
+  speechActivated = false;
 }
 
 // 计时
