@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>连词成句闯关游戏</title>
+  <style>
+    *{
+      box-sizing:border-box;
+      font-family:system-ui, -apple-system, sans-serif;
+    }
+    body{
+      margin:0;
+      padding:16px;
+      background:#F8F9FC;
+    }
+    .container{
+      max-width:960px;
+      margin:0 auto;
+    }
+    .coin-tower{
+      position:fixed;
+      left:10px;
+      top:50%;
+      transform:translateY(-50%);
+      display:flex;
+      flex-direction:column-reverse;
+      gap:8px;
+      z-index:5;
+    }
+    .coin{
+      font-size:28px;
+      opacity:0;
+      transform:scale(0.3);
+      transition:all 0.4s ease;
+    }
+    .coin.active{
+      opacity:1;
+      transform:scale(1);
+    }
+    .title-box{
+      background:#6366F1;
+      color:white;
+      text-align:center;
+      padding:14px;
+      border-radius:12px;
+      font-size:19px;
+      margin-bottom:16px;
+    }
+    .score-board{
+      background:white;
+      border-radius:12px;
+      padding:12px;
+      text-align:center;
+      margin-bottom:16px;
+      font-size:15px;
+    }
+    .game-item{
+      background:white;
+      padding:20px;
+      border-radius:16px;
+      margin-bottom:18px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.04);
+    }
+    .sentence-number{
+      font-weight:bold;
+      color:#6366F1;
+      margin-bottom:8px;
+    }
+    .hint{
+      color:#444;
+      margin-bottom:14px;
+      line-height:1.5;
+    }
+    .words{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-bottom:18px;
+      min-height:60px;
+    }
+    .word{
+      padding:12px 16px;
+      background:#EEF2FF;
+      border-radius:10px;
+      cursor:pointer;
+      font-size:17px;
+    }
+    .word:hover{
+      background:#D1D5F9;
+    }
+    .answer-line{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      padding:14px;
+      background:#F9FAFB;
+      border-radius:12px;
+      min-height:70px;
+      margin-bottom:14px;
+    }
+    .word-correct{
+      background:#A7F3D0;
+      color:#065F46;
+      padding:10px 14px;
+      border-radius:10px;
+    }
+    .word-wrong{
+      background:#FECACA;
+      color:#7F1D1D;
+      padding:10px 14px;
+      border-radius:10px;
+      cursor:pointer;
+    }
+    .result{
+      margin-top:8px;
+      font-weight:500;
+    }
+    .correct{
+      color:#10B981;
+    }
+    .wrong{
+      color:#EF4444;
+    }
+    button{
+      padding:9px 16px;
+      border:none;
+      border-radius:10px;
+      cursor:pointer;
+      margin-right:6px;
+      font-size:15px;
+    }
+    .btn-success{
+      background:#10B981;
+      color:white;
+    }
+    .btn-warning{
+      background:#F59E0B;
+      color:white;
+    }
+    .btn-light{
+      background:#EEF2FF;
+      color:#6366F1;
+      padding:6px 10px;
+      font-size:13px;
+    }
+    .victory{
+      position:fixed;
+      top:50%;
+      left:50%;
+      transform:translate(-50%,-50%);
+      background:white;
+      border-radius:20px;
+      padding:40px;
+      text-align:center;
+      z-index:999;
+      display:none;
+      font-size:20px;
+      font-weight:bold;
+    }
+    #loading{
+      text-align:center;
+      padding:40px;
+      font-size:17px;
+      color:#666;
+    }
+  </style>
+</head>
+
+<body>
+<div class="coin-tower" id="coinTower"></div>
+
+<div class="victory" id="victoryModal">
+  🎉 恭喜通关！成功登顶！🎉
+  <br><br>
+  <button onclick="closeVictory()" class="btn-success">再来一局</button>
+</div>
+
+<div class="container">
+  <div class="title-box">连词成句 · 闯关游戏</div>
+  <div class="score-board">
+    用时：<span id="time">0</span> 秒 | 总分：<span id="score">0</span> 分 | 已闯：<span id="progress">0</span>/<span id="total">0</span> 关
+  </div>
+
+  <div style="text-align:center; margin-bottom:20px;">
+    <button onclick="startGame()" class="btn-success">开始闯关</button>
+    <button onclick="resetAll()" class="btn-warning">重置</button>
+  </div>
+
+  <div id="gameContainer">
+    <div id="loading">加载题目中...</div>
+  </div>
+</div>
+
+<script>
+let questions = [];
+let games = [];
+let startTime = null;
+let timer = null;
+let totalScore = 0;
+
+function getFileNameFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("file") || "default";
+}
+
+async function loadQuestions() {
+  const file = getFileNameFromUrl();
+  const path = `questions/${file}.txt`;
+
+  try {
+    const res = await fetch(path);
+    if (!res.ok) throw new Error("文件不存在");
+    const text = await res.text();
+    const lines = text.split(/\n/).map(l=>l.trim()).filter(l=>l);
+    questions = lines;
+    document.getElementById("loading").remove();
+  } catch(e) {
+    document.getElementById("loading").innerText = "⚠️ 未找到对应题库：" + file;
+  }
+}
+
+document.addEventListener('touchstart', function initVoice(){
+  window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+  document.removeEventListener('touchstart', initVoice);
+}, {once:true});
+
+function speak(text, lang) {
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang;
+  u.rate = 0.92;
+  setTimeout(()=>window.speechSynthesis.speak(u), 20);
+}
+function speakWord(w) { speak(w, 'en-US'); }
+function speakCN(t) { speak(t, 'zh-CN'); }
+
+async function startGame() {
+  if (questions.length === 0) await loadQuestions();
+  if (questions.length === 0) { alert("暂无题目"); return; }
+
+  resetAll();
+  startTime = new Date();
+  timer = setInterval(updateTime, 1000);
+
+  const tower = document.getElementById("coinTower");
+  tower.innerHTML = "";
+  questions.forEach((_, i) => {
+    const coin = document.createElement("div");
+    coin.className = "coin";
+    coin.id = "coin-" + (i+1);
+    coin.textContent = "💰";
+    tower.appendChild(coin);
+  });
+
+  document.getElementById("total").textContent = questions.length;
+  document.getElementById("progress").textContent = 0;
+
+  const container = document.getElementById("gameContainer");
+  container.innerHTML = "";
+  games = [];
+
+  questions.forEach((line, idx) => {
+    const [en, cn] = line.split("|").map(s=>s.trim());
+    if (!en) return;
+    const g = {
+      id: idx+1, en, cn,
+      words: en.split(/\s+/).filter(Boolean),
+      userAnswer: [],
+      shuffled: [...en.split(/\s+/)].sort(()=>Math.random()-0.5),
+      finished: false
+    };
+    games.push(g);
+    renderGame(g);
+  });
+}
+
+function renderGame(g) {
+  const div = document.createElement("div");
+  div.className = "game-item";
+  div.innerHTML = `
+    <div class="sentence-number">第 ${g.id} 关</div>
+    <div class="hint">
+      中文提示：${g.cn}
+      <button onclick="speakCN('${g.cn.replace(/'/g,"\\'")}')" class="btn-light">🔊</button>
+    </div>
+    <div class="words" id="words-${g.id}"></div>
+    <div class="answer-line" id="answer-${g.id}"></div>
+    <button onclick="check(${g.id})" class="btn-success">检查</button>
+    <button onclick="resetOne(${g.id})" class="btn-warning">重置本题</button>
+    <div id="result-${g.id}" class="result"></div>
+  `;
+  document.getElementById("gameContainer").appendChild(div);
+  refreshGame(g);
+}
+
+function refreshGame(g) {
+  const wordsEl = document.getElementById(`words-${g.id}`);
+  wordsEl.innerHTML = g.shuffled.map(w =>
+    `<span class="word" onclick="pick(${g.id},'${w.replace(/'/g,"\\'")}')">${w}</span>`
+  ).join("");
+
+  const ansEl = document.getElementById(`answer-${g.id}`);
+  ansEl.innerHTML = g.userAnswer.map((word, i) => {
+    const ok = g.words[i] === word;
+    const cls = ok ? "word-correct" : "word-wrong";
+    const click = ok ? "" : `onclick="putBack(${g.id},${i})"`;
+    return `<span class="${cls}" ${click}>${word}${ok?" ✅":" ❌"}</span>`;
+  }).join("");
+}
+
+function pick(id, word) {
+  const g = games.find(x=>x.id===id);
+  if (!g || g.finished) return;
+  speakWord(word);
+  const i = g.shuffled.indexOf(word);
+  if (i === -1) return;
+  g.shuffled.splice(i, 1);
+  g.userAnswer.push(word);
+  refreshGame(g);
+}
+
+function putBack(id, i) {
+  const g = games.find(x=>x.id===id);
+  if (!g || g.finished) return;
+  const w = g.userAnswer[i];
+  g.userAnswer.splice(i, 1);
+  g.shuffled.push(w);
+  refreshGame(g);
+}
+
+function check(id) {
+  const g = games.find(x=>x.id===id);
+  if (!g || g.finished) return;
+  const ok = JSON.stringify(g.userAnswer) === JSON.stringify(g.words);
+  const res = document.getElementById(`result-${g.id}`);
+
+  if (ok) {
+    res.className = "result correct";
+    res.textContent = "✅ 回答正确！获得金币💰";
+    if (!g.finished) {
+      g.finished = true;
+      document.getElementById(`coin-${g.id}`).classList.add("active");
+      totalScore += 500;
+      document.getElementById("score").textContent = totalScore;
+      const done = games.filter(x=>x.finished).length;
+      document.getElementById("progress").textContent = done;
+      if (done === games.length) {
+        setTimeout(()=>{
+          document.getElementById("victoryModal").style.display = "block";
+        }, 600);
+      }
+    }
+  } else {
+    res.className = "result wrong";
+    res.textContent = "❌ 有错误，点击红色单词放回重选";
+  }
+  refreshGame(g);
+}
+
+function resetOne(id) {
+  const g = games.find(x=>x.id===id);
+  if (!g) return;
+  g.shuffled = [...g.words].sort(()=>Math.random()-0.5);
+  g.userAnswer = [];
+  g.finished = false;
+  document.getElementById(`result-${id}`).textContent = "";
+  document.getElementById(`coin-${id}`).classList.remove("active");
+  const done = games.filter(x=>x.finished).length;
+  document.getElementById("progress").textContent = done;
+  refreshGame(g);
+}
+
+function resetAll() {
+  clearInterval(timer);
+  startTime = null;
+  totalScore = 0;
+  games = [];
+  document.getElementById("time").textContent = 0;
+  document.getElementById("score").textContent = 0;
+  document.getElementById("progress").textContent = 0;
+  document.getElementById("total").textContent = 0;
+  document.getElementById("coinTower").innerHTML = "";
+  document.getElementById("victoryModal").style.display = "none";
+}
+
+function updateTime() {
+  if (!startTime) return;
+  const s = Math.floor((new Date - startTime)/1000);
+  document.getElementById("time").textContent = s;
+}
+
+function closeVictory() {
+  document.getElementById("victoryModal").style.display = "none";
+  resetAll();
+}
+
+loadQuestions();
+</script>
+</body>
+</html>
